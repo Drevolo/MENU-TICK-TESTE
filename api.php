@@ -2,40 +2,40 @@
 header("Content-Type: application/json");
 
 // ⚠️ Em produção, troque * pelo domínio real do seu site
-// Exemplo: header("Access-Control-Allow-Origin: https://meusite.com");
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, POST");
 header("Access-Control-Allow-Headers: Content-Type");
 
 // =============================================
-// 🔧 CONFIGURAÇÃO — edite conforme a hospedagem
+// 🗄️ CONFIGURAÇÃO SQLITE
 // =============================================
-// As credenciais abaixo são carregadas de variáveis de ambiente.
-// Se as variáveis não existirem, usa os valores fallback.
-// ⚠️ Troque os fallback antes de subir para produção!
+// O banco fica num arquivo local — sem precisar de MySQL.
+// Dados persistem enquanto o servidor não for reinstalado.
 // =============================================
-$host     = getenv('DB_HOST')     ?: "localhost";
-$user     = getenv('DB_USER')     ?: "admtick";
-$password = getenv('DB_PASSWORD') ?: "tick@1";
-$database = getenv('DB_NAME')     ?: "@T1ck@123@0";
-// =============================================
+$dbDir  = __DIR__ . '/data';
+$dbPath = $dbDir . '/cardapio.sqlite';
 
-session_start();
-
-$conn = new mysqli($host, $user, $password, $database);
-
-if ($conn->connect_error) {
-    echo json_encode([
-        "status"   => "erro",
-        "mensagem" => "Erro na conexão com banco"
-    ]);
-    exit;
+if (!is_dir($dbDir)) {
+    mkdir($dbDir, 0755, true);
 }
 
-$conn->set_charset("utf8mb4");
+$conn = new SQLite3($dbPath);
+$conn->enableExceptions(true);
 
-if (!isset($_SESSION['itens']))  $_SESSION['itens']  = [];
-if (!isset($_SESSION['parar']))  $_SESSION['parar']  = false;
+// Cria a tabela na primeira execução
+$conn->exec("CREATE TABLE IF NOT EXISTS pedidos (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    cliente    TEXT    NOT NULL,
+    numero     TEXT    NOT NULL DEFAULT 'Não informado',
+    endereco   TEXT    NOT NULL,
+    itens      TEXT    NOT NULL,
+    total      REAL    NOT NULL DEFAULT 0.00,
+    pagamento  TEXT    NOT NULL DEFAULT 'Não informado',
+    status     TEXT    NOT NULL DEFAULT 'novo',
+    criado_em  DATETIME DEFAULT CURRENT_TIMESTAMP
+)");
+
+// =============================================
 
 $rota = $_GET['rota'] ?? '';
 
@@ -67,17 +67,20 @@ if ($rota === "finalizar") {
         $total += ($item['price'] ?? 0) * ($item['quantity'] ?? 1);
     }
 
-    $query = "INSERT INTO pedidos (cliente, numero, endereco, itens, total, pagamento)
-              VALUES (?, ?, ?, ?, ?, ?)";
-
-    $stmt = $conn->prepare($query);
-    $stmt->bind_param("ssssds", $cliente, $numero, $endereco, $itensJson, $total, $pagamento);
+    $stmt = $conn->prepare("INSERT INTO pedidos (cliente, numero, endereco, itens, total, pagamento)
+                            VALUES (:cliente, :numero, :endereco, :itens, :total, :pagamento)");
+    $stmt->bindValue(':cliente',   $cliente,   SQLITE3_TEXT);
+    $stmt->bindValue(':numero',    $numero,    SQLITE3_TEXT);
+    $stmt->bindValue(':endereco',  $endereco,  SQLITE3_TEXT);
+    $stmt->bindValue(':itens',     $itensJson, SQLITE3_TEXT);
+    $stmt->bindValue(':total',     $total,     SQLITE3_FLOAT);
+    $stmt->bindValue(':pagamento', $pagamento, SQLITE3_TEXT);
     $stmt->execute();
 
     echo json_encode([
         "status"   => "ok",
         "mensagem" => "Pedido salvo com sucesso",
-        "id"       => $conn->insert_id
+        "id"       => $conn->lastInsertRowID()
     ]);
     exit;
 }
@@ -87,11 +90,10 @@ if ($rota === "finalizar") {
 // ============================
 if ($rota === "listar") {
 
-    $query  = "SELECT * FROM pedidos ORDER BY id DESC";
-    $result = $conn->query($query);
+    $result = $conn->query("SELECT * FROM pedidos ORDER BY id DESC");
 
     $pedidos = [];
-    while ($row = $result->fetch_assoc()) {
+    while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
         $row['itens'] = json_decode($row['itens'], true);
         $pedidos[] = $row;
     }
@@ -122,9 +124,9 @@ if ($rota === "atualizar_status") {
         exit;
     }
 
-    $query = "UPDATE pedidos SET status = ? WHERE id = ?";
-    $stmt  = $conn->prepare($query);
-    $stmt->bind_param("si", $status, $id);
+    $stmt = $conn->prepare("UPDATE pedidos SET status = :status WHERE id = :id");
+    $stmt->bindValue(':status', $status, SQLITE3_TEXT);
+    $stmt->bindValue(':id',     $id,     SQLITE3_INTEGER);
     $stmt->execute();
 
     echo json_encode([
