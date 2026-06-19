@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="./styles/output.css" />
+    <title>🔐 Admin - Doce Expresso</title>
+</head>
+
+<style>
+    @keyframes bounce-in {
+        0% { opacity: 0; transform: scale(0.9) translateY(20px); }
+        50% { transform: scale(1.02) translateY(-5px); }
+        100% { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    .animate-bounce-in { animation: bounce-in 0.4s ease-out; }
+    .aba-conteudo { transition: opacity 0.2s ease; }
+    .aba-conteudo.hidden { display: none; opacity: 0; }
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .aba-conteudo:not(.hidden) { animation: fadeIn 0.3s ease-out; }
+
+    /* ===== ESTILOS PARA CAMPOS DE ADICIONAIS/TAMANHOS ===== */
+    .config-section {
+        border: 1px solid #e5e7eb;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        margin: 1rem 0;
+        background: #f9fafb;
+    }
+    .config-section h4 {
+        font-weight: 600;
+        margin-bottom: 0.75rem;
+        color: #374151;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .config-section > p.text-xs {
+        margin-bottom: 0.75rem;
+        color: #6b7280;
+    }
+    .adicional-row, .tamanho-row {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 0.5rem;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+    .adicional-row input, .tamanho-row input {
+        padding: 0.5rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.375rem;
+        font-size: 0.875rem;
+    }
+    .adicional-row input.adicional-nome { flex: 2; min-width: 120px; }
+    .adicional-row input.adicional-preco { flex: 1; min-width: 80px; }
+    .tamanho-row input.tamanho-ml { width: 70px; }
+    .tamanho-row input.tamanho-label { flex: 1; min-width: 80px; }
+    .tamanho-row input.tamanho-acrescimo { width: 90px; }
+    .btn-remove {
+        background: #ef4444;
+        color: white;
+        border: none;
+        padding: 0.5rem 0.75rem;
+        border-radius: 0.375rem;
+        cursor: pointer;
+        font-size: 0.875rem;
+        transition: background 0.2s;
+    }
+    .btn-remove:hover { background: #dc2626; }
+    .btn-add {
+        background: #3b82f6;
+        color: white;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 0.375rem;
+        cursor: pointer;
+        margin-top: 0.5rem;
+        font-size: 0.875rem;
+        transition: background 0.2s;
+    }
+    .btn-add:hover { background: #2563eb; }
+    .config-footer {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-top: 0.75rem;
+        padding-top: 0.75rem;
+        border-top: 1px solid #e5e7eb;
+    }
+    .config-footer label {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: #374151;
+    }
+    .config-footer input {
+        width: 60px;
+        padding: 0.375rem 0.5rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.375rem;
+        text-align: center;
+    }
+</style>
+
+<body class="bg-gray-300">
+
+    <!-- LOGIN -->
+    <div id="admin-login"
+        class="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+
+        <!-- Card de LOGIN -->
+        <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 border-2 border-gray-200">
+
+            <!-- Header -->
+            <div class="text-center mb-6">
+                <div class="inline-flex items-center justify-center w-16 h-16 bg-red-500 rounded-2xl mb-4 shadow-xl">
+                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                </div>
+                <h3 class="text-2xl font-bold text-gray-800">🔐 Acesso Restrito</h3>
+                <p class="text-sm text-gray-500 mt-2">Painel Administrativo - Doce Expresso</p>
+            </div>
+
+            <!-- Formulário LOGIN -->
+            <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Senha de Acesso</label>
+                    <input type="password" id="admin-pass"
+                        class="w-full px-4 py-3 border-2 border-gray-300 rounded-xl text-center font-mono text-xl tracking-widest focus:border-red-500 focus:ring-4 focus:ring-red-500/20 transition-all"
+                        placeholder="••••" maxlength="10" autocomplete="current-password" required autofocus>
+                </div>
+
+                <div id="login-error"
+                    class="hidden bg-red-50 text-red-600 text-sm font-semibold py-3 px-4 rounded-xl text-center border border-red-200">
+                    ❌ Senha incorreta. Tente novamente.
+                </div>
+
+                <!-- Botões LOGIN -->
+                <div class="flex gap-3 pt-4">
+                    <button type="button" onclick="cancelarLogin()"
+                        class="flex-1 py-3 px-4 border-2 border-gray-300 text-gray-700 font-bold rounded-xl hover:bg-gray-100 transition-all">
+                        ← Voltar
+                    </button>
+                    <button type="submit"
+                        class="flex-1 py-3 px-4 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-xl">
+                        Entrar →
+                    </button>
+                </div>
+            </form>
+
+            <!-- Footer -->
+            <div class="mt-6 pt-4 border-t border-gray-100 text-center">
+                <p class="text-xs text-gray-400">Acesso exclusivo para administradores</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="painel-conteudo" class="hidden">
+
+        <nav class="bg-gradient-to-r from-gray-900 to-gray-800 p-4 text-white flex justify-between">
+            <h1 class="font-bold text-lg">🎛️ Painel de Pedidos</h1>
+            <a href="index.html" onclick="logout()"
+                class="bg-red-500 px-4 py-2 rounded-lg hover:bg-red-600 transition font-semibold">Sair</a>
+        </nav>
+
+        <!-- ========== NAVEGAÇÃO POR ABAS ========== -->
+        <nav class="bg-gradient-to-r from-gray-900 to-gray-800 shadow-md p-1.5 mb-6 flex gap-1 max-w-md mx-auto">
+            <button onclick="mudarAba('pedidos')" id="tab-pedidos"
+                class="flex-1 py-2.5 px-4 rounded-lg font-semibold text-sm transition-all bg-blue-600 text-white shadow">📋
+                Pedidos</button>
+            <button onclick="mudarAba('cardapio')" id="tab-cardapio"
+                class="flex-1 py-2.5 px-4 rounded-lg font-semibold text-sm transition-all text-white hover:bg-gray-100">📦
+                Cardápio</button>
+            <button onclick="mudarAba('analytics')" id="tab-analytics"
+                class="flex-1 py-2.5 px-4 rounded-lg font-semibold text-sm transition-all text-white hover:bg-gray-100">📈
+                Analytics</button>
+        </nav>
+
+        <!-- Conteúdo Principal -->
+        <main class="max-w-7xl mx-auto p-4">
+
+            <!-- ========== CONTEÚDO: PEDIDOS ========== -->
+            <div id="aba-pedidos" class="aba-conteudo">
+                <!-- Controle de Status da Loja -->
+                <div class="bg-white p-5 rounded-xl shadow-lg mb-6 border border-gray-100">
+                    <h2 class="text-xl font-bold mb-4 text-gray-800">Controle da Loja</h2>
+                    <div class="flex flex-wrap items-center gap-4">
+                        <span class="text-gray-600 font-medium">Status:</span>
+                        <strong id="status-atual" class="text-xl font-bold text-gray-400">Carregando...</strong>
+                        <div class="flex gap-3 ml-auto">
+                            <button onclick="alterarStatus('aberto')"
+                                class="text-white bg-gradient-to-r from-green-700 to-green-500 px-5 py-2.5 rounded-lg font-bold hover:bg-gradient-to-r hover:from-green-900 hover:to-green-800 hover:scale-110 duration-100 shadow-md">🟢
+                                Abrir Loja</button>
+                            <button onclick="alterarStatus('fechado')"
+                                class="bg-gradient-to-r from-red-700 to-red-500 text-white px-5 py-2.5 rounded-lg font-bold hover:bg-gradient-to-r hover:from-red-900 hover:to-red-800 hover:scale-110 duration-100 shadow-md">🔴
+                                Fechar Loja</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Lista de Pedidos -->
+                <h2 class="text-xl font-bold mb-4 text-gray-800">📋 Pedidos Recebidos</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="pedidos-lista"></div>
+            </div>
+
+            <!-- ========== CONTEÚDO: CARDÁPIO ========== -->
+            <div id="aba-cardapio" class="aba-conteudo hidden">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Gestão de Produtos -->
+                    <div class="bg-white p-5 rounded-xl shadow">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="font-bold text-lg">🛍️ Produtos & Preços</h3>
+                            <button onclick="abrirModalProduto()"
+                                class="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-blue-700">+
+                                Novo</button>
+                        </div>
+                        <div id="admin-produtos-list" class="space-y-3 max-h-[500px] overflow-y-auto pr-2"></div>
+                    </div>
+
+                    <!-- Gestão de Descontos -->
+                    <div class="bg-white p-5 rounded-xl shadow">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="font-bold text-lg">🏷️ Descontos & Promoções</h3>
+                            <button onclick="abrirModalDesconto()"
+                                class="bg-purple-600 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-purple-700">+
+                                Novo</button>
+                        </div>
+                        <div id="admin-descontos-list" class="space-y-3 max-h-[500px] overflow-y-auto pr-2"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ========== MODAL PRODUTO ========== -->
+            <div id="modal-produto" class="hidden fixed inset-0 z-[9999] items-center justify-center p-4 bg-black/60">
+                <div class="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl max-h-[90vh] overflow-y-auto">
+                    <h3 class="text-xl font-bold mb-4" id="modal-produto-titulo">Adicionar Produto</h3>
+                    <input type="hidden" id="prod-id">
+                    <div class="space-y-3">
+                        <input id="prod-nome" type="text" placeholder="Nome do Produto"
+                            class="w-full border rounded-lg px-3 py-2">
+                        <input id="prod-preco" type="number" step="0.01" placeholder="Preço (R$)"
+                            class="w-full border rounded-lg px-3 py-2">
+                        <select id="prod-categoria" class="w-full border rounded-lg px-3 py-2">
+                            <option value="potes">🫙 Potes</option>
+                            <option value="copos">🧉 Copos</option>
+                            <option value="milkshakes">🥤 Milkshakes</option>
+                            <option value="milkshakesespecial">🥤 Milkshakes Especial</option>
+                            <option value="picoles">🍦 Picolés</option>
+                        </select>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
+                            <textarea id="prod-descricao"
+                                placeholder="Ex: Pão artesanal, 180g de carne angus, queijo cheddar, bacon crocante..."
+                                class="w-full border rounded-lg px-3 py-2 resize-none focus:outline-none focus:border-green-600 transition"
+                                rows="3" maxlength="200"></textarea>
+                            <p class="text-xs text-gray-400 mt-1">Máx. 200 caracteres</p>
+                        </div>
+                        <input id="prod-imagem" type="text" placeholder="URL da Imagem (ex: assets/hamb-1.png)"
+                            class="w-full border rounded-lg px-3 py-2">
+
+                        <!--  SEÇÃO: ADICIONAIS -->
+                        <div id="config-adicionais" class="config-section hidden">
+                            <h4>🍓 Adicionais (Potes/Copos)</h4>
+                            <p class="text-xs">Itens que o cliente pode escolher como complemento</p>
+                            <div id="adicionais-container" class="space-y-1"></div>
+                            <button type="button" onclick="addAdicionalField()" class="btn-add">+ Adicionar opcional</button>
+                            <div class="config-footer">
+                                <label for="adicionais-obrigatorios">Qtd. obrigatória:</label>
+                                <input type="number" id="adicionais-obrigatorios" value="5" min="1" max="10">
+                                <span class="text-xs text-gray-500">itens</span>
+                            </div>
+                        </div>
+
+                        <!-- SEÇÃO: TAMANHOS (para Milkshakes) -->
+                        <div id="config-tamanhos" class="config-section hidden">
+                            <h4>🥤 Tamanhos (Milkshakes)</h4>
+                            <p class="text-xs">Tamanhos disponíveis e acréscimo de preço para cada</p>
+                            <div id="tamanhos-container" class="space-y-1"></div>
+                            <button type="button" onclick="addTamanhoField()" class="btn-add">+ Adicionar tamanho</button>
+                        </div>
+                    </div>
+                    <div class="flex gap-3 mt-5">
+                        <button onclick="fecharModalProduto()"
+                            class="flex-1 py-2 border rounded-lg hover:bg-gray-50">Cancelar</button>
+                        <button onclick="salvarProduto()"
+                            class="flex-1 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Salvar</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Desconto -->
+            <div id="modal-desconto" class="hidden fixed inset-0 z-[9999] items-center justify-center p-4 bg-black/60">
+                <div class="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
+                    <h3 class="text-xl font-bold mb-4">Criar Desconto</h3>
+                    <input type="hidden" id="desc-id">
+                    <div class="space-y-3">
+                        <input id="desc-nome" type="text" placeholder="Nome (ex: Black Friday)"
+                            class="w-full border rounded-lg px-3 py-2">
+                        <div class="grid grid-cols-2 gap-3">
+                            <select id="desc-tipo" class="border rounded-lg px-3 py-2">
+                                <option value="percent">% Desconto</option>
+                                <option value="fixed">R$ Fixo</option>
+                            </select>
+                            <input id="desc-valor" type="number" step="0.01" placeholder="Valor"
+                                class="border rounded-lg px-3 py-2">
+                        </div>
+                        <select id="desc-aplicar" class="w-full border rounded-lg px-3 py-2">
+                            <option value="all">🌍 Todos os Produtos</option>
+                            <option value="category:potes">🫙 Só Potes</option>
+                            <option value="category:copos">🧉 Só Copos</option>
+                            <option value="category:milkshakes">🥤 Só Milkshakes</option>
+                            <option value="category:milkshakesespecial">🥤 Só Milkshakes Especial</option>
+                            <option value="category:picoles">🍦 Só Picolés</option>
+                        </select>
+                        <div class="grid grid-cols-2 gap-3">
+                            <input id="desc-inicio" type="date" class="border rounded-lg px-3 py-2">
+                            <input id="desc-fim" type="date" class="border rounded-lg px-3 py-2">
+                        </div>
+                    </div>
+                    <div class="flex gap-3 mt-5">
+                        <button onclick="fecharModalDesconto()"
+                            class="flex-1 py-2 border rounded-lg hover:bg-gray-50">Cancelar</button>
+                        <button onclick="salvarDesconto()"
+                            class="flex-1 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">Salvar</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Gráficos -->
+            <div id="aba-analytics" class="aba-conteudo hidden">
+
+                <!-- Cards de Métricas Rápidas -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    <div class="bg-white p-4 rounded-xl shadow border-l-4 border-green-500">
+                        <p class="text-xs text-gray-400 uppercase font-bold">Vendas Hoje</p>
+                        <p class="text-2xl font-black text-green-600" id="metric-vendas-hoje">R$ 0,00</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow border-l-4 border-blue-500">
+                        <p class="text-xs text-gray-400 uppercase font-bold">Pedidos Hoje</p>
+                        <p class="text-2xl font-black text-blue-600" id="metric-pedidos-hoje">0</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow border-l-4 border-purple-500">
+                        <p class="text-xs text-gray-400 uppercase font-bold">Ticket Médio</p>
+                        <p class="text-2xl font-black text-purple-600" id="metric-ticket-medio">R$ 0,00</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow border-l-4 border-yellow-500">
+                        <p class="text-xs text-gray-400 uppercase font-bold">Em Preparo</p>
+                        <p class="text-2xl font-black text-yellow-600" id="metric-em-preparo">0</p>
+                    </div>
+                </div>
+
+                <div class="bg-white p-4 rounded-xl shadow mb-6 flex flex-wrap items-center justify-between gap-4">
+                    <div>
+                        <h3 class="font-bold text-gray-800">📋 Gerar Relatório</h3>
+                        <p class="text-sm text-gray-500">Exporte dados completos para análise ou impressão</p>
+                    </div>
+                    <div class="flex flex-wrap gap-3">
+                        <select id="relatorio-periodo"
+                            class="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="hoje">📅 Hoje</option>
+                            <option value="semana">📆 Esta Semana</option>
+                            <option value="mes" selected>📊 Este Mês</option>
+                            <option value="ano">🗓️ Este Ano</option>
+                            <option value="todos">📚 Todos os Dados</option>
+                        </select>
+                        <button onclick="gerarRelatorio('html')"
+                            class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition flex items-center gap-2">
+                            🖨️ PDF
+                        </button>
+                        <button onclick="gerarRelatorio('csv')"
+                            class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition flex items-center gap-2">
+                            📥 CSV
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Gráficos -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+                    <!-- ========== GRÁFICO: QUANTIDADE DE VENDAS ========== -->
+                    <div class="bg-white p-5 rounded-xl shadow lg:col-span-2">
+                        <div class="flex flex-wrap justify-between items-center mb-4 gap-3">
+                            <h3 class="font-bold text-gray-700">📦 Quantidade de Produtos Vendidos</h3>
+
+                            <!-- Filtros de Período -->
+                            <div class="flex flex-wrap gap-2">
+                                <button onclick="renderQuantidadeVendas('diario')"
+                                    class="px-3 py-1.5 text-xs font-medium rounded-lg transition border border-gray-200 hover:bg-gray-100"
+                                    id="btn-qty-diario">📅 Diário</button>
+                                <button onclick="renderQuantidadeVendas('semanal')"
+                                    class="px-3 py-1.5 text-xs font-medium rounded-lg transition border border-gray-200 hover:bg-gray-100"
+                                    id="btn-qty-semanal">📆 Semanal</button>
+                                <button onclick="renderQuantidadeVendas('mensal')"
+                                    class="px-3 py-1.5 text-xs font-medium rounded-lg transition bg-purple-600 text-white border border-purple-600"
+                                    id="btn-qty-mensal">📊 Mensal</button>
+                                <button onclick="renderQuantidadeVendas('anual')"
+                                    class="px-3 py-1.5 text-xs font-medium rounded-lg transition border border-gray-200 hover:bg-gray-100"
+                                    id="btn-qty-anual">🗓️ Anual</button>
+                            </div>
+                        </div>
+
+                        <!-- Cards de Resumo Rápido -->
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                            <div class="bg-purple-50 p-3 rounded-lg text-center">
+                                <p class="text-xs text-purple-600 font-bold">Total</p>
+                                <p class="text-xl font-black text-purple-700" id="qty-total-unidades">0</p>
+                                <p class="text-xs text-gray-400">unidades</p>
+                            </div>
+                            <div class="bg-green-50 p-3 rounded-lg text-center">
+                                <p class="text-xs text-green-600 font-bold">Top Produto</p>
+                                <p class="text-sm font-black text-green-700 truncate" id="qty-top-produto">-</p>
+                                <p class="text-xs text-gray-400" id="qty-top-qtd">0 un.</p>
+                            </div>
+                            <div class="bg-blue-50 p-3 rounded-lg text-center">
+                                <p class="text-xs text-blue-600 font-bold">Média/Dia</p>
+                                <p class="text-xl font-black text-blue-700" id="qty-media-dia">0</p>
+                                <p class="text-xs text-gray-400">unidades</p>
+                            </div>
+                            <div class="bg-orange-50 p-3 rounded-lg text-center">
+                                <p class="text-xs text-orange-600 font-bold">Pedidos</p>
+                                <p class="text-xl font-black text-orange-700" id="qty-total-pedidos">0</p>
+                                <p class="text-xs text-gray-400">no período</p>
+                            </div>
+                        </div>
+
+                        <!-- Canvas do Gráfico -->
+                        <div class="relative h-72 w-full">
+                            <canvas id="chart-quantidade"></canvas>
+                        </div>
+
+                        <!-- Tabela Resumida -->
+                        <div class="mt-4 overflow-x-auto">
+                            <table class="w-full text-xs">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-3 py-2 text-left font-semibold text-gray-600">Produto</th>
+                                        <th class="px-3 py-2 text-center font-semibold text-gray-600">Qtd</th>
+                                        <th class="px-3 py-2 text-right font-semibold text-gray-600">%</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tabela-quantidade-produtos">
+                                    <!-- Preenchido via JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Gráfico: Pedidos por Hora -->
+                    <div class="bg-white p-5 rounded-xl shadow">
+                        <h3 class="font-bold text-gray-700 mb-3">🕐 Pedidos por Horário</h3>
+                        <div class="relative h-64 w-full">
+                            <canvas id="chart-horas"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Gráfico: Status dos Pedidos -->
+                    <div class="bg-white p-5 rounded-xl shadow">
+                        <h3 class="font-bold text-gray-700 mb-3">📊 Status dos Pedidos</h3>
+                        <div class="relative h-64 w-full">
+                            <canvas id="chart-status"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Gráfico: Vendas Mensais -->
+                    <div class="bg-white p-5 rounded-xl shadow lg:col-span-2">
+                        <div class="flex flex-wrap justify-between items-center mb-3 gap-3">
+                            <h3 class="font-bold text-gray-700">💰 Vendas por Mês (Ano Atual)</h3>
+                            <select id="filtro-ano-mensal"
+                                class="text-sm border rounded-lg px-3 py-1.5 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                onchange="renderChartVendasMensais()">
+                                <!-- Preenchido via JS -->
+                            </select>
+                        </div>
+                        <div class="relative h-72 w-full">
+                            <canvas id="chart-vendas-mensais"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Gráfico: Vendas Anuais -->
+                    <div class="bg-white p-5 rounded-xl shadow lg:col-span-2">
+                        <h3 class="font-bold text-gray-700 mb-3">📅 Vendas por Ano</h3>
+                        <div class="relative h-72 w-full">
+                            <canvas id="chart-vendas-anuais"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Gráfico: Top Produtos -->
+                    <div class="bg-white p-5 rounded-xl shadow lg:col-span-2">
+                        <h3 class="font-bold text-gray-700 mb-3">🏆 Top 5 Produtos Mais Vendidos</h3>
+                        <div class="relative h-72 w-full">
+                            <canvas id="chart-produtos"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Botão de Atualizar -->
+                <div class="mt-6 text-center">
+                    <button onclick="refreshCharts()"
+                        class="bg-gray-800 hover:bg-gray-900 text-white px-6 py-2.5 rounded-lg font-medium transition flex items-center gap-2 mx-auto">
+                        🔄 Atualizar Dados
+                    </button>
+                    <p class="text-xs text-gray-400 mt-2">Os dados são atualizados automaticamente a cada novo pedido
+                    </p>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Modal de Finalização -->
+    <div id="order-complete-modal"
+        class="hidden fixed inset-0 z-[9999] items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+        <div
+            class="relative bg-white rounded-3xl shadow-2xl w-full max-w-md p-8 border-2 border-gray-100 animate-bounce-in">
+
+            <!-- Ícone de Sucesso -->
+            <div class="text-center mb-6">
+                <div
+                    class="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-green-400 to-green-600 rounded-full mb-4 shadow-xl">
+                    <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+                    </svg>
+                </div>
+                <h3 class="text-2xl font-bold text-gray-800">✅ Pedido Finalizado!</h3>
+                <p class="text-gray-500 mt-2">O pedido foi removido da fila</p>
+            </div>
+
+            <!-- Resumo do Pedido -->
+            <div class="bg-gray-100 rounded-2xl p-4 mb-6 border border-gray-100">
+                <div class="flex justify-between items-center mb-3 pb-3 border-b border-gray-200">
+                    <span class="text-sm font-semibold text-gray-500">Número do Pedido</span>
+                    <span class="font-mono font-bold text-gray-800 text-lg" id="modal-pedido-id">#0000</span>
+                </div>
+                <div class="flex justify-between items-center mb-3 pb-3 border-b border-gray-200">
+                    <span class="text-sm font-semibold text-gray-500">Cliente</span>
+                    <span class="font-medium text-gray-700" id="modal-pedido-cliente">-</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-sm font-semibold text-gray-500">Total Recebido</span>
+                    <span class="font-bold text-green-600 text-xl" id="modal-pedido-total">R$ 0,00</span>
+                </div>
+            </div>
+
+            <!-- Estatísticas -->
+            <div class="grid grid-cols-2 gap-3 mb-6">
+                <div class="bg-blue-50 border border-blue-100 rounded-xl p-3 text-center">
+                    <p class="text-xs font-bold text-blue-500 uppercase">Pedidos Hoje</p>
+                    <p class="text-2xl font-bold text-blue-700" id="modal-pedidos-hoje">0</p>
+                </div>
+                <div class="bg-purple-50 border border-purple-100 rounded-xl p-3 text-center">
+                    <p class="text-xs font-bold text-purple-500 uppercase">Faturamento</p>
+                    <p class="text-2xl font-bold text-purple-700" id="modal-faturamento">R$0</p>
+                </div>
+            </div>
+
+            <!-- Botões -->
+            <div class="flex gap-3">
+                <button onclick="fecharModalFinalizado()"
+                    class="flex-1 py-3 px-4 border-2 border-gray-300 text-gray-700 font-bold rounded-xl hover:bg-gray-50 transition-all">
+                    Cancelar
+                </button>
+                <button onclick="confirmarRemocaoPedido()"
+                    class="flex-1 py-3 px-4 bg-gradient-to-r border-2 border-gray-300 from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-bold rounded-xl transition-all shadow-lg">
+                    ✅ Confirmar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="admin.js"></script>
+    <script src="graficos.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0"></script>
+    
+    <script>
+    
+        function addAdicionalField(nome = '', preco = '') {
+            const container = document.getElementById('adicionais-container');
+            if (!container) return;
+            const index = container.children.length;
+            const div = document.createElement('div');
+            div.className = 'adicional-row';
+            div.innerHTML = `
+                <input type="text" placeholder="Nome (ex: Morango)" value="${nome}" class="adicional-nome" data-idx="${index}">
+                <input type="number" step="0.01" placeholder="Preço (R$)" value="${preco}" class="adicional-preco" data-idx="${index}">
+                <button type="button" class="btn-remove" onclick="this.parentElement.remove()">✕</button>
+            `;
+            container.appendChild(div);
+        }
+
+        function addTamanhoField(ml = '', label = '', acrescimo = '') {
+            const container = document.getElementById('tamanhos-container');
+            if (!container) return;
+            const index = container.children.length;
+            const div = document.createElement('div');
+            div.className = 'tamanho-row';
+            div.innerHTML = `
+                <input type="number" placeholder="ml" value="${ml}" class="tamanho-ml" data-idx="${index}">
+                <input type="text" placeholder="Label" value="${label}" class="tamanho-label" data-idx="${index}">
+                <input type="number" step="0.01" placeholder="+R$" value="${acrescimo}" class="tamanho-acrescimo" data-idx="${index}">
+                <button type="button" class="btn-remove" onclick="this.parentElement.remove()">✕</button>
+            `;
+            container.appendChild(div);
+        }
+
+        document.getElementById('prod-categoria')?.addEventListener('change', function() {
+            const cat = this.value;
+            const secAdicionais = document.getElementById('config-adicionais');
+            const secTamanhos = document.getElementById('config-tamanhos');
+            
+            if (cat === 'potes' || cat === 'copos') {
+                secAdicionais?.classList.remove('hidden');
+                secTamanhos?.classList.add('hidden');
+            } else if (cat === 'milkshakes' || cat === 'milkshakesespecial') {
+                secAdicionais?.classList.add('hidden');
+                secTamanhos?.classList.remove('hidden');
+            } else {
+                secAdicionais?.classList.add('hidden');
+                secTamanhos?.classList.add('hidden');
+            }
+        });
+
+        window.addAdicionalField = addAdicionalField;
+        window.addTamanhoField = addTamanhoField;
+    </script>
+</body>
+</html>

@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: doce-expresso
+    env: docker
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: DB_HOST
+        fromDatabase:
+          name: doce-expresso-db
+          property: host
+      - key: DB_USER
+        fromDatabase:
+          name: doce-expresso-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: doce-expresso-db
+          property: password
+      - key: DB_NAME
+        fromDatabase:
+          name: doce-expresso-db
+          property: database
+
+databases:
+  - name: doce-expresso-db
+    databaseName: cardapio
+    plan: free
+    ipAllowList: []
