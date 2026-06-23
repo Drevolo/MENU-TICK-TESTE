@@ -1,52 +1,82 @@
 # Guia de Deploy — Doce Expresso
 
-## Testar Localmente (desenvolvimento)
+## Testar Localmente
 
 ### Pré-requisitos
-- PHP 8.x (com extensão SQLite)
+- PHP 8.x com extensão `pdo_sqlite`
 - Git
 
 ### Passos
 ```bash
-# 1. Clone o repositório
-git clone https://github.com/seu-usuario/seu-repo.git
-cd seu-repo
+# 1. Iniciar servidor PHP embutido
+php -S localhost:8000
 
-# 2. Inicie o servidor PHP local
-powershell -ExecutionPolicy Bypass -File start.ps1
-
-# 3. Popule o banco com dados iniciais (em outro terminal)
+# 2. Popular dados iniciais (outro terminal)
 php seed.php
 
-# 4. Acesse no navegador
-#    http://localhost:8000
-#    http://localhost:8000/admin.html  (senha: 1234)
+# 3. Acessar
+#    http://localhost:8000           (cardápio)
+#    http://localhost:8000/admin.html (admin — senha: 1234)
 ```
 
-## Deploy Gratuito
+Também funciona com o `start.ps1` no PowerShell:
+```powershell
+.\start.ps1
+```
 
-### Opção 1: Render (recomendado — Docker + SQLite)
+---
 
-1. Crie um repositório no GitHub e faça push do código
-2. Acesse [dashboard.render.com](https://dashboard.render.com)
-3. Clique em **New + → Blueprint**
-4. Conecte seu repositório
-5. O Render lê automaticamente o `render.yaml` e configura tudo
-6. Clique em **Apply**
+## Deploy Gratuito — InfinityFree (recomendado)
 
-> O Render cria um Web Service com Docker + disco persistente.
-> O banco SQLite fica no disco persistente e não perde dados entre deploys.
+### Por que InfinityFree?
+- PHP 8.x com SQLite nativo ✔️
+- Painel cPanel fácil
+- Tráfego ilimitado
+- Sem propagandas obrigatórias
+- Perfeito para projetos PHP + SQLite
 
-### Opção 2: InfinityFree (PHP gratuito — sem Docker)
+### Passo a passo
 
-1. Faça upload de todos os arquivos via FTP para sua hospedagem InfinityFree
-2. Acesse `https://seudominio.infinityfreeapp.com/seed.php` para popular os dados
-3. Pronto! O site já funciona
+#### 1. Criar conta
+Acesse [infinityfree.com](https://infinityfree.com) e crie uma conta gratuita.
 
-### Opção 3: Vercel / Netlify (estático — experimental)
+#### 2. Criar site
+No painel, clique em **Accounts → Add hosting account** e preencha:
+- **Domain:** escolha `seudominio.infinityfreeapp.com`
+- **Admin email:** seu e-mail
+- **Password:** sua senha
 
-O site **não** funciona diretamente no Vercel/Netlify porque precisa de PHP.
-Use a versão Docker + Render (recomendado) ou hospedagem PHP tradicional.
+#### 3. Upload dos arquivos via FTP
+Use FileZilla ou qualquer cliente FTP:
+
+| Configuração | Valor |
+|---|---|
+| Servidor | `ftp.infinityfree.com` |
+| Usuário | seu usuário (no e-mail de confirmação) |
+| Senha | a que você criou |
+| Pasta | `htdocs/` (é a raiz do site) |
+
+Faça upload de **todos os arquivos do projeto** para `htdocs/`.
+
+#### 4. Popular dados iniciais
+Acesse no navegador:
+```
+https://seudominio.infinityfreeapp.com/seed.php
+```
+Deve retornar:
+```json
+{"status":"ok","mensagem":"Banco populado com 20 produtos!"}
+```
+
+#### 5. Pronto!
+```
+https://seudominio.infinityfreeapp.com            (cardápio)
+https://seudominio.infinityfreeapp.com/admin.html  (admin — senha: 1234)
+```
+
+> ⚠️ A pasta `data/` precisa ter permissão de escrita. Em geral o InfinityFree já cria com as permissões corretas. Se der erro 500 no `api.php`, ajuste pelo cPanel: **File Manager → data/ → Permissões → 755**.
+
+---
 
 ## Estrutura do Projeto
 
@@ -54,11 +84,12 @@ Use a versão Docker + Render (recomendado) ou hospedagem PHP tradicional.
 /
 ├── index.html          ← Cardápio (cliente)
 ├── admin.html          ← Painel administrativo
-├── api.php             ← API REST com SQLite
+├── api.php             ← API REST com SQLite (PDO)
 ├── seed.php            ← Popula dados iniciais
 ├── start.ps1           ← Script para servidor local (Windows)
-├── Dockerfile          ← Build da imagem PHP+Apache
-├── render.yaml         ← Config do Render
+├── .htaccess           ← Regras Apache (HTTPS)
+├── data/
+│   └── .htaccess       ← Protege o banco SQLite
 ├── js/                 ← Scripts modulares
 │   ├── api.js          ← Comunicação com backend
 │   ├── menu.js         ← Renderização do cardápio
@@ -69,30 +100,34 @@ Use a versão Docker + Render (recomendado) ou hospedagem PHP tradicional.
 ├── admin.js            ← Lógica do painel admin
 ├── graficos.js         ← Gráficos Chart.js
 ├── styles/output.css   ← CSS Tailwind compilado
-├── assets/             ← Imagens
-└── data/               ← Banco SQLite (criado automaticamente)
+└── assets/             ← Imagens dos produtos
 ```
 
 ## Banco de Dados
 
-O sistema usa **SQLite** — banco em arquivo local.
+O sistema usa **SQLite** com PDO — banco em arquivo local (`data/cardapio.sqlite`).
 
 ### Tabelas
 - **pedidos** — Pedidos dos clientes
 - **produtos** — Cardápio (gerenciado pelo admin)
 - **descontos** — Promoções ativas
 
-### Seed de Dados
+### Seed
 ```bash
 php seed.php
+# ou acesse no navegador: /seed.php
 ```
 
-### Verificar se a API está funcionando
+### Verificar API
 ```
-https://seu-site.onrender.com/api.php?rota=listar_produtos
+https://seudominio.infinityfreeapp.com/api.php?rota=listar_produtos
 ```
-
 Deve retornar:
 ```json
 {"status":"ok","produtos":[...]}
 ```
+
+## Alternativas gratuitas
+- **000WebHost** — Mesmo esquema, upload via FTP
+- **Byet.host** — Mesmo esquema
+- **AwardSpace** — PHP + SQLite, 1GB de espaço

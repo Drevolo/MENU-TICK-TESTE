@@ -1,0 +1,4 @@
+# Impede acesso direto ao banco SQLite
+<FilesMatch "\.(sqlite|sqlite3|db)$">
+    Require all denied
+</FilesMatch>
