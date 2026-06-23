@@ -2,6 +2,7 @@ services:
   - type: web
     name: doce-expresso
     env: docker
+    plan: free
     dockerfilePath: ./Dockerfile
     disk:
       name: sqlite-data
