@@ -1,17 +1,14 @@
 <?php
-header("Content-Type: application/json");
-
-// ⚠️ Em produção, troque * pelo domínio real do seu site
+header("Content-Type: application/json; charset=utf-8");
 header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Methods: GET, POST");
+header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type");
 
-// =============================================
-// 🗄️ CONFIGURAÇÃO SQLITE
-// =============================================
-// O banco fica num arquivo local — sem precisar de MySQL.
-// Dados persistem enquanto o servidor não for reinstalado.
-// =============================================
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(204);
+    exit;
+}
+
 $dbDir  = __DIR__ . '/data';
 $dbPath = $dbDir . '/cardapio.sqlite';
 
@@ -19,10 +16,15 @@ if (!is_dir($dbDir)) {
     mkdir($dbDir, 0755, true);
 }
 
-$conn = new SQLite3($dbPath);
-$conn->enableExceptions(true);
+try {
+    $conn = new PDO("sqlite:$dbPath");
+    $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $conn->exec("PRAGMA journal_mode=WAL");
+} catch (PDOException $e) {
+    echo json_encode(["status" => "erro", "mensagem" => "Erro ao conectar: " . $e->getMessage()]);
+    exit;
+}
 
-// Cria a tabela na primeira execução
 $conn->exec("CREATE TABLE IF NOT EXISTS pedidos (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     cliente    TEXT    NOT NULL,
@@ -35,17 +37,35 @@ $conn->exec("CREATE TABLE IF NOT EXISTS pedidos (
     criado_em  DATETIME DEFAULT CURRENT_TIMESTAMP
 )");
 
-// =============================================
+$conn->exec("CREATE TABLE IF NOT EXISTS produtos (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome       TEXT    NOT NULL,
+    price      REAL    NOT NULL DEFAULT 0,
+    categoria  TEXT    NOT NULL,
+    imagem     TEXT    DEFAULT '',
+    descricao  TEXT    DEFAULT '',
+    active     INTEGER NOT NULL DEFAULT 1,
+    adicionais TEXT,
+    tamanhos   TEXT,
+    criado_em  DATETIME DEFAULT CURRENT_TIMESTAMP
+)");
+
+$conn->exec("CREATE TABLE IF NOT EXISTS descontos (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    name       TEXT    NOT NULL,
+    type       TEXT    NOT NULL DEFAULT 'percent',
+    value      REAL    NOT NULL DEFAULT 0,
+    applyTo    TEXT    NOT NULL DEFAULT 'all',
+    startDate  TEXT    NOT NULL,
+    endDate    TEXT    NOT NULL,
+    active     INTEGER NOT NULL DEFAULT 1,
+    criado_em  DATETIME DEFAULT CURRENT_TIMESTAMP
+)");
 
 $rota = $_GET['rota'] ?? '';
 
-// ============================
-// ✅ ROTA: FINALIZAR PEDIDO
-// ============================
 if ($rota === "finalizar") {
-
     $input = json_decode(file_get_contents("php://input"), true);
-
     $cliente   = trim($input['cliente']   ?? '');
     $numero    = trim($input['numero']    ?? 'Não informado');
     $endereco  = trim($input['endereco']  ?? '');
@@ -53,15 +73,11 @@ if ($rota === "finalizar") {
     $pagamento = trim($input['pagamento'] ?? 'Não informado');
 
     if (!$cliente || !$endereco || empty($itens)) {
-        echo json_encode([
-            "status"   => "erro",
-            "mensagem" => "Dados incompletos"
-        ]);
+        echo json_encode(["status" => "erro", "mensagem" => "Dados incompletos"]);
         exit;
     }
 
     $itensJson = json_encode($itens, JSON_UNESCAPED_UNICODE);
-
     $total = 0;
     foreach ($itens as $item) {
         $total += ($item['price'] ?? 0) * ($item['quantity'] ?? 1);
@@ -69,77 +85,120 @@ if ($rota === "finalizar") {
 
     $stmt = $conn->prepare("INSERT INTO pedidos (cliente, numero, endereco, itens, total, pagamento)
                             VALUES (:cliente, :numero, :endereco, :itens, :total, :pagamento)");
-    $stmt->bindValue(':cliente',   $cliente,   SQLITE3_TEXT);
-    $stmt->bindValue(':numero',    $numero,    SQLITE3_TEXT);
-    $stmt->bindValue(':endereco',  $endereco,  SQLITE3_TEXT);
-    $stmt->bindValue(':itens',     $itensJson, SQLITE3_TEXT);
-    $stmt->bindValue(':total',     $total,     SQLITE3_FLOAT);
-    $stmt->bindValue(':pagamento', $pagamento, SQLITE3_TEXT);
-    $stmt->execute();
-
-    echo json_encode([
-        "status"   => "ok",
-        "mensagem" => "Pedido salvo com sucesso",
-        "id"       => $conn->lastInsertRowID()
+    $stmt->execute([
+        ':cliente'   => $cliente,
+        ':numero'    => $numero,
+        ':endereco'  => $endereco,
+        ':itens'     => $itensJson,
+        ':total'     => $total,
+        ':pagamento' => $pagamento,
     ]);
+
+    echo json_encode(["status" => "ok", "mensagem" => "Pedido salvo com sucesso", "id" => $conn->lastInsertId()]);
     exit;
 }
 
-// ============================
-// 📋 ROTA: LISTAR PEDIDOS
-// ============================
 if ($rota === "listar") {
-
     $result = $conn->query("SELECT * FROM pedidos ORDER BY id DESC");
-
-    $pedidos = [];
-    while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
-        $row['itens'] = json_decode($row['itens'], true);
-        $pedidos[] = $row;
+    $pedidos = $result->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($pedidos as &$p) {
+        $p['itens'] = json_decode($p['itens'], true);
     }
-
-    echo json_encode([
-        "status"  => "ok",
-        "pedidos" => $pedidos
-    ]);
+    echo json_encode(["status" => "ok", "pedidos" => $pedidos], JSON_UNESCAPED_UNICODE);
     exit;
 }
 
-// ============================
-// 🔄 ROTA: ATUALIZAR STATUS
-// ============================
 if ($rota === "atualizar_status") {
-
     $input  = json_decode(file_get_contents("php://input"), true);
     $id     = intval($input['id']     ?? 0);
     $status = trim($input['status']   ?? '');
-
     $statusPermitidos = ['novo', 'preparando', 'entregue', 'cancelado'];
 
     if (!$id || !in_array($status, $statusPermitidos)) {
-        echo json_encode([
-            "status"   => "erro",
-            "mensagem" => "Dados inválidos"
-        ]);
+        echo json_encode(["status" => "erro", "mensagem" => "Dados inválidos"]);
         exit;
     }
 
     $stmt = $conn->prepare("UPDATE pedidos SET status = :status WHERE id = :id");
-    $stmt->bindValue(':status', $status, SQLITE3_TEXT);
-    $stmt->bindValue(':id',     $id,     SQLITE3_INTEGER);
-    $stmt->execute();
+    $stmt->execute([':status' => $status, ':id' => $id]);
 
-    echo json_encode([
-        "status"   => "ok",
-        "mensagem" => "Status atualizado para: $status"
-    ]);
+    echo json_encode(["status" => "ok", "mensagem" => "Status atualizado para: $status"]);
     exit;
 }
 
-// ============================
-// ❌ ROTA INVÁLIDA
-// ============================
-echo json_encode([
-    "status"   => "erro",
-    "mensagem" => "Rota inválida"
-]);
+if ($rota === "listar_produtos") {
+    $result = $conn->query("SELECT * FROM produtos ORDER BY categoria, nome");
+    $produtos = $result->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($produtos as &$p) {
+        if ($p['adicionais']) $p['adicionais'] = json_decode($p['adicionais'], true);
+        if ($p['tamanhos'])   $p['tamanhos']   = json_decode($p['tamanhos'], true);
+        $p['active'] = (bool)$p['active'];
+    }
+    echo json_encode(["status" => "ok", "produtos" => $produtos], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+if ($rota === "salvar_produtos") {
+    $input = json_decode(file_get_contents("php://input"), true);
+    $produtos = $input['produtos'] ?? [];
+
+    $conn->exec("DELETE FROM produtos");
+
+    $stmt = $conn->prepare("INSERT INTO produtos (id, nome, price, categoria, imagem, descricao, active, adicionais, tamanhos)
+                            VALUES (:id, :nome, :price, :categoria, :imagem, :descricao, :active, :adicionais, :tamanhos)");
+
+    foreach ($produtos as $p) {
+        $stmt->execute([
+            ':id'        => intval($p['id'] ?? 0),
+            ':nome'      => $p['nome'] ?? '',
+            ':price'     => floatval($p['price'] ?? 0),
+            ':categoria' => $p['categoria'] ?? '',
+            ':imagem'    => $p['imagem'] ?? '',
+            ':descricao' => $p['descricao'] ?? '',
+            ':active'    => isset($p['active']) ? ($p['active'] ? 1 : 0) : 1,
+            ':adicionais'=> isset($p['adicionais']) ? json_encode($p['adicionais'], JSON_UNESCAPED_UNICODE) : null,
+            ':tamanhos'  => isset($p['tamanhos'])   ? json_encode($p['tamanhos'],   JSON_UNESCAPED_UNICODE) : null,
+        ]);
+    }
+
+    echo json_encode(["status" => "ok"]);
+    exit;
+}
+
+if ($rota === "listar_descontos") {
+    $result = $conn->query("SELECT * FROM descontos ORDER BY id DESC");
+    $descontos = $result->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($descontos as &$d) {
+        $d['active'] = (bool)$d['active'];
+    }
+    echo json_encode(["status" => "ok", "descontos" => $descontos], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+if ($rota === "salvar_descontos") {
+    $input = json_decode(file_get_contents("php://input"), true);
+    $descontos = $input['descontos'] ?? [];
+
+    $conn->exec("DELETE FROM descontos");
+
+    $stmt = $conn->prepare("INSERT INTO descontos (id, name, type, value, applyTo, startDate, endDate, active)
+                            VALUES (:id, :name, :type, :value, :applyTo, :startDate, :endDate, :active)");
+
+    foreach ($descontos as $d) {
+        $stmt->execute([
+            ':id'        => intval($d['id'] ?? 0),
+            ':name'      => $d['name'] ?? '',
+            ':type'      => $d['type'] ?? 'percent',
+            ':value'     => floatval($d['value'] ?? 0),
+            ':applyTo'   => $d['applyTo'] ?? 'all',
+            ':startDate' => $d['startDate'] ?? '',
+            ':endDate'   => $d['endDate'] ?? '',
+            ':active'    => isset($d['active']) ? ($d['active'] ? 1 : 0) : 1,
+        ]);
+    }
+
+    echo json_encode(["status" => "ok"]);
+    exit;
+}
+
+echo json_encode(["status" => "erro", "mensagem" => "Rota inválida"]);
