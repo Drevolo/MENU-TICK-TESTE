@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: menutick
+    env: docker
+    repo: https://github.com/Drevolo/MENU-TICK-TESTE
+    branch: main
+    plan: free
