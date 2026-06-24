@@ -170,7 +170,7 @@ function _criarCardProduto(p, desconto) {
         <div class="bg-white flex gap-2 p-2 rounded-lg border-l-4 border-yellow-300 shadow-lg hover:shadow-2xl transition-shadow duration-300 relative group">
             ${badgeDesconto}
 
-            <img src="${p.imagem || 'assets/hamb-1.png'}"
+            <img src="${p.imagem || 'data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Crect fill=%27%23f3f4f6%27 width=%27100%27 height=%27100%27/%3E%3Ctext x=%2750%27 y=%2760%27 text-anchor=%27middle%27 font-size=%2740%27 fill=%27%239ca3af%27%3E🍽%3C/text%3E%3C/svg%3E'}"
                  alt="${p.nome}"
                  class="w-24 h-24 sm:w-28 sm:h-28 rounded-md hover:scale-110 hover:-rotate-2 duration-300 object-cover">
 

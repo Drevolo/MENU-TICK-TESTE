@@ -470,7 +470,7 @@ async function renderAdminProdutos() {
     list.innerHTML = produtos.map(p => `
         <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
             <div class="flex items-center gap-3">
-                <img src="${p.imagem || 'assets/hamb-1.png'}" class="w-10 h-10 rounded object-cover">
+                <img src="${p.imagem || 'data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Crect fill=%27%23f3f4f6%27 width=%27100%27 height=%27100%27/%3E%3Ctext x=%2750%27 y=%2760%27 text-anchor=%27middle%27 font-size=%2740%27 fill=%27%239ca3af%27%3E🍽%3C/text%3E%3C/svg%3E'}" class="w-10 h-10 rounded object-cover">
                 <div>
                     <p class="font-medium text-sm">${p.nome}</p>
                     <p class="text-xs text-gray-500">${p.categoria} • ${p.active ? 'Ativo' : 'Inativo'}</p>
@@ -586,7 +586,7 @@ async function abrirModalProduto(id = null) {
         document.getElementById('prod-categoria').value = p.categoria;
         document.getElementById('prod-imagem').value = p.imagem || '';
         const preview = document.getElementById('prod-imagem-preview');
-        if (preview) preview.src = p.imagem || 'assets/hamb-1.png';
+        if (preview) preview.src = p.imagem || 'data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Crect fill=%27%23f3f4f6%27 width=%27100%27 height=%27100%27/%3E%3Ctext x=%2750%27 y=%2760%27 text-anchor=%27middle%27 font-size=%2740%27 fill=%27%239ca3af%27%3E🍽%3C/text%3E%3C/svg%3E';
         document.getElementById('prod-descricao').value = p.descricao || '';
         if (p.adicionais) _preencherCamposAdicionais(p.adicionais);
         if (p.tamanhos) _preencherCamposTamanhos(p.tamanhos);
@@ -599,7 +599,7 @@ async function abrirModalProduto(id = null) {
         document.getElementById('prod-categoria').value = '';
         document.getElementById('prod-imagem').value = '';
         const preview = document.getElementById('prod-imagem-preview');
-        if (preview) preview.src = 'assets/hamb-1.png';
+        if (preview) preview.src = 'data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Crect fill=%27%23f3f4f6%27 width=%27100%27 height=%27100%27/%3E%3Ctext x=%2750%27 y=%2760%27 text-anchor=%27middle%27 font-size=%2740%27 fill=%27%239ca3af%27%3E🍽%3C/text%3E%3C/svg%3E';
         document.getElementById('prod-descricao').value = '';
         const obrigInput = document.getElementById('adicionais-obrigatorios');
         if (obrigInput) obrigInput.value = '5';
