@@ -16,6 +16,6 @@ jobs:
           ftp_port: 21
           ftp_username: ${{ secrets.FTP_USER }}
           ftp_password: ${{ secrets.FTP_PASSWORD }}
-          remote_folder: /
+          remote_folder: /htdocs/
           local_folder: .
           delete_remote: false
