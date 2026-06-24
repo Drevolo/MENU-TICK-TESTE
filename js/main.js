@@ -1,8 +1,11 @@
 document.addEventListener("DOMContentLoaded", async function () {
     console.log("Carregando dados do servidor...");
 
-    await apiRefreshProdutos();
-    await apiRefreshDescontos();
+    await Promise.all([
+        apiRefreshProdutos(),
+        apiRefreshDescontos(),
+        refreshStatusLoja(),
+    ]);
 
     updateHeaderStatus();
     renderizarMenu();
@@ -12,6 +15,13 @@ document.addEventListener("DOMContentLoaded", async function () {
 
     console.log("Doce Expresso inicializado com sucesso!");
 });
+
+// Sincroniza status da loja entre abas a cada 30s
+setInterval(async () => {
+    const anterior = _statusLoja;
+    await refreshStatusLoja();
+    if (_statusLoja !== anterior) updateHeaderStatus();
+}, 30000);
 
 window.addEventListener('storage', (e) => {
     if (e.key === 'doceexpresso_menu' || e.key === 'doceexpresso_descontos') {

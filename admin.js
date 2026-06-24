@@ -6,6 +6,48 @@ const ADMIN_CONFIG = {
 
 let pedidoParaFinalizar = null;
 
+async function comprimirImagem(arquivo) {
+    const maxLargura = 600;
+    const qualidade = 0.7;
+
+    const img = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = e => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.onerror = reject;
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(arquivo);
+    });
+
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+
+    let { width, height } = img;
+    if (width > maxLargura) {
+        height = (height * maxLargura) / width;
+        width = maxLargura;
+    }
+
+    canvas.width = width;
+    canvas.height = height;
+    ctx.drawImage(img, 0, 0, width, height);
+
+    return canvas.toDataURL('image/webp', qualidade);
+}
+
+async function uploadImagem(input) {
+    const arquivo = input.files?.[0];
+    if (!arquivo) return;
+
+    const compressed = await comprimirImagem(arquivo);
+    const preview = document.getElementById('prod-imagem-preview');
+    const urlInput = document.getElementById('prod-imagem');
+    if (preview) preview.src = compressed;
+    if (urlInput) urlInput.value = compressed;
+}
+
 const Utils = {
     parseBRL: (valorStr) => {
         if (!valorStr) return 0;
@@ -104,25 +146,24 @@ function logout() {
 }
 
 async function unlockPanel() {
-    await apiRefreshProdutos();
-    await apiRefreshDescontos();
+    await Promise.all([
+        apiRefreshProdutos(),
+        apiRefreshDescontos(),
+        refreshStatusLoja(),
+    ]);
 
     const painel = document.getElementById('painel-conteudo');
     if (painel) painel.classList.remove('hidden');
 
-    const statusSalvo = localStorage.getItem("statusLoja") || "aberto";
-    atualizarInterfaceAdmin(statusSalvo);
+    atualizarInterfaceAdmin(_statusLoja || "aberto");
     carregarPedidos();
 }
 
-function alterarStatus(status) {
+async function alterarStatus(status) {
     if (!isValidSession()) { openLoginModal(); return; }
-    localStorage.setItem("statusLoja", status);
-    atualizarInterfaceAdmin(status);
-    window.dispatchEvent(new StorageEvent('storage', {
-        key: 'statusLoja',
-        newValue: status
-    }));
+    await apiSetConfig("statusLoja", status);
+    _statusLoja = status;
+    window.dispatchEvent(new CustomEvent('statusLojaChange', { detail: status }));
 }
 
 function atualizarInterfaceAdmin(status) {
@@ -415,12 +456,6 @@ function initAdmin() {
 
 window.addEventListener('load', initAdmin);
 
-window.addEventListener('storage', (e) => {
-    if (!isValidSession()) return;
-    if (e.key === 'pedidosRecebidos') carregarPedidos();
-    if (e.key === 'statusLoja') atualizarInterfaceAdmin(e.newValue);
-});
-
 function getProdutos()  { return apiGetProdutos(); }
 function saveProdutos(p) { return apiSalvarProdutos(p); }
 function getDescontos() { return apiGetDescontos(); }
@@ -550,6 +585,8 @@ async function abrirModalProduto(id = null) {
         document.getElementById('prod-preco').value = p.price;
         document.getElementById('prod-categoria').value = p.categoria;
         document.getElementById('prod-imagem').value = p.imagem || '';
+        const preview = document.getElementById('prod-imagem-preview');
+        if (preview) preview.src = p.imagem || 'assets/hamb-1.png';
         document.getElementById('prod-descricao').value = p.descricao || '';
         if (p.adicionais) _preencherCamposAdicionais(p.adicionais);
         if (p.tamanhos) _preencherCamposTamanhos(p.tamanhos);
@@ -561,6 +598,8 @@ async function abrirModalProduto(id = null) {
         document.getElementById('prod-preco').value = '';
         document.getElementById('prod-categoria').value = '';
         document.getElementById('prod-imagem').value = '';
+        const preview = document.getElementById('prod-imagem-preview');
+        if (preview) preview.src = 'assets/hamb-1.png';
         document.getElementById('prod-descricao').value = '';
         const obrigInput = document.getElementById('adicionais-obrigatorios');
         if (obrigInput) obrigInput.value = '5';
@@ -676,10 +715,13 @@ window.unlockPanel = async function () {
     setTimeout(initCharts, 300);
 };
 
+window.addEventListener('statusLojaChange', (e) => {
+    if (isValidSession()) atualizarInterfaceAdmin(e.detail);
+});
+
 window.addEventListener('storage', (e) => {
     if (!isValidSession()) return;
     if (e.key === 'pedidosRecebidos') {
         setTimeout(() => { refreshCharts(); renderQuantidadeVendas('mensal'); }, 100);
     }
-    if (e.key === 'statusLoja') atualizarInterfaceAdmin(e.newValue);
 });

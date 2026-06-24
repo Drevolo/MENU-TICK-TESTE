@@ -261,8 +261,19 @@
                                 rows="3" maxlength="200"></textarea>
                             <p class="text-xs text-gray-400 mt-1">Máx. 200 caracteres</p>
                         </div>
-                        <input id="prod-imagem" type="text" placeholder="URL da Imagem (ex: assets/hamb-1.png)"
-                            class="w-full border rounded-lg px-3 py-2">
+                        <div class="flex items-center gap-3">
+                            <img id="prod-imagem-preview" src="assets/hamb-1.png"
+                                class="w-16 h-16 rounded-lg object-cover border">
+                            <div class="flex-1 space-y-2">
+                                <input id="prod-imagem" type="text" placeholder="URL da Imagem"
+                                    class="w-full border rounded-lg px-3 py-2 text-sm"
+                                    oninput="document.getElementById('prod-imagem-preview').src = this.value || 'assets/hamb-1.png'">
+                                <label class="flex items-center gap-2 cursor-pointer text-sm text-blue-600 hover:text-blue-800">
+                                    <input type="file" accept="image/*" class="hidden" onchange="uploadImagem(this)">
+                                    📁 Upload + Compressão Automática
+                                </label>
+                            </div>
+                        </div>
 
                         <!--  SEÇÃO: ADICIONAIS -->
                         <div id="config-adicionais" class="config-section hidden">

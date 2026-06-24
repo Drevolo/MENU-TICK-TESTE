@@ -2,6 +2,10 @@ const API_URL = "./api.php";
 
 let _produtosCache = null;
 let _descontosCache = null;
+let _statusLoja = null;
+
+function getStatusLoja() { return _statusLoja; }
+function setStatusLoja(valor) { _statusLoja = valor; }
 
 async function apiRefreshProdutos() {
     try {
@@ -71,18 +75,56 @@ async function apiSalvarDescontos(descontos) {
     }
 }
 
-async function apiFinalizarPedido(dadosPedido) {
+async function apiGetConfig(chave) {
     try {
-        const resposta = await fetch(API_URL + "?rota=finalizar", {
+        const res = await fetch(API_URL + `?rota=get_config&chave=${encodeURIComponent(chave)}`);
+        const data = await res.json();
+        if (data.status === "ok") return data.valor;
+    } catch (e) {
+        console.error("Erro ao carregar config do servidor:", e);
+    }
+    return null;
+}
+
+async function apiSetConfig(chave, valor) {
+    try {
+        const res = await fetch(API_URL + "?rota=set_config", {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(dadosPedido)
+            body: JSON.stringify({ chave, valor })
         });
-        return await resposta.json();
-    } catch (erro) {
-        console.error("Erro ao finalizar pedido:", erro);
+        return await res.json();
+    } catch (e) {
+        console.error("Erro ao salvar config no servidor:", e);
         return { status: "erro", mensagem: "Falha na conexão com o servidor." };
     }
+}
+
+async function refreshStatusLoja() {
+    const valor = await apiGetConfig("statusLoja");
+    _statusLoja = valor || null;
+}
+
+async function apiFinalizarPedido(dadosPedido, tentativas = 3) {
+    let ultimoErro;
+    for (let i = 0; i < tentativas; i++) {
+        try {
+            const resposta = await fetch(API_URL + "?rota=finalizar", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(dadosPedido)
+            });
+            const data = await resposta.json();
+            if (data.status === "ok") return data;
+            ultimoErro = data.mensagem || "Erro desconhecido";
+        } catch (erro) {
+            ultimoErro = erro.message;
+            console.warn(`⚠️ Tentativa ${i + 1}/${tentativas} falhou: ${erro.message}`);
+            if (i < tentativas - 1) await new Promise(r => setTimeout(r, 1000));
+        }
+    }
+    console.error("❌ Todas as tentativas de finalizar pedido falharam:", ultimoErro);
+    return { status: "erro", mensagem: ultimoErro || "Falha na conexão com o servidor." };
 }
 
 async function apiListarPedidos() {

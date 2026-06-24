@@ -36,12 +36,9 @@ const NUMERO_WHATSAPP = "5562985044345";
  * @returns {boolean} true = aberta, false = fechada
  */
 function checkOpen() {
-    const statusManual = localStorage.getItem("statusLoja");
+    if (_statusLoja === "fechado") return false;
+    if (_statusLoja === "aberto")  return true;
 
-    if (statusManual === "fechado") return false;
-    if (statusManual === "aberto")  return true;
-
-    // Sem status manual: usa o horário
     const hora = new Date().getHours();
     return hora >= 14 && hora < 23;
 }
@@ -225,20 +222,23 @@ async function finalizarPedido() {
         pagamento: paymentMethodInput?.value || "Não informado",
     };
 
-    // 6. Salva no banco via api.js
-    // "await" espera a resposta do servidor antes de continuar
+    // 6. Salva no banco via api.js (com retry automático)
     const resposta = await apiFinalizarPedido({
         cliente:  novoPedido.cliente,
         numero:   novoPedido.numero,
         endereco: novoPedido.endereco,
-        itens:    cart,           // manda o array completo pro banco
+        itens:    cart,
         pagamento: novoPedido.pagamento
     });
 
     if (resposta.status !== "ok") {
-        // Avisa o erro mas não impede o envio pelo WhatsApp
-        // (o pedido ainda chega na loja, mesmo se o banco falhar)
         console.error("❌ Erro ao salvar no banco:", resposta.mensagem);
+        Toastify({
+            text: "❌ Erro ao processar pedido. Tente novamente!",
+            duration: 5000,
+            style: { background: "#ef4444", borderRadius: "8px" }
+        }).showToast();
+        return;
     }
 
     // 7. Envia pro WhatsApp
@@ -251,15 +251,12 @@ async function finalizarPedido() {
         style: { background: "#16a34a", borderRadius: "8px" }
     }).showToast();
 
-    // Limpa o formulário
     if (clientNameInput)   clientNameInput.value  = "";
     if (clientNumberInput) clientNumberInput.value = "";
     if (addressInput)      addressInput.value      = "";
 
-    // Esvazia o carrinho (função do carrinho.js)
     clearCart();
 
-    // Fecha o modal do carrinho
     const cartModal = document.getElementById("cart-modal");
     if (cartModal) cartModal.style.display = "none";
 }
@@ -277,11 +274,7 @@ document.addEventListener("DOMContentLoaded", function () {
         checkoutBtn.addEventListener("click", finalizarPedido);
     }
 
-    // Atualiza o badge de status quando o admin muda pelo outro navegador/aba
-    window.addEventListener('storage', (e) => {
-        if (e.key === 'statusLoja') {
-            updateHeaderStatus();
-        }
-    });
+    // Atualiza o badge de status quando o admin muda o status
+    window.addEventListener('statusLojaChange', updateHeaderStatus);
 
 });

@@ -1,0 +1,21 @@
+name: Deploy via FTP
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: wlixcc/FTP-Deploy-Action@v1.2.5
+        with:
+          ftp_host: ${{ secrets.FTP_HOST }}
+          ftp_port: 21
+          ftp_username: ${{ secrets.FTP_USER }}
+          ftp_password: ${{ secrets.FTP_PASSWORD }}
+          remote_folder: /
+          local_folder: .
+          delete_remote: false

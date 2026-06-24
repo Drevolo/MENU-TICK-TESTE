@@ -62,6 +62,11 @@ $conn->exec("CREATE TABLE IF NOT EXISTS descontos (
     criado_em  DATETIME DEFAULT CURRENT_TIMESTAMP
 )");
 
+$conn->exec("CREATE TABLE IF NOT EXISTS config (
+    chave TEXT PRIMARY KEY,
+    valor TEXT NOT NULL
+)");
+
 $rota = $_GET['rota'] ?? '';
 
 if ($rota === "finalizar") {
@@ -83,18 +88,21 @@ if ($rota === "finalizar") {
         $total += ($item['price'] ?? 0) * ($item['quantity'] ?? 1);
     }
 
-    $stmt = $conn->prepare("INSERT INTO pedidos (cliente, numero, endereco, itens, total, pagamento)
-                            VALUES (:cliente, :numero, :endereco, :itens, :total, :pagamento)");
-    $stmt->execute([
-        ':cliente'   => $cliente,
-        ':numero'    => $numero,
-        ':endereco'  => $endereco,
-        ':itens'     => $itensJson,
-        ':total'     => $total,
-        ':pagamento' => $pagamento,
-    ]);
-
-    echo json_encode(["status" => "ok", "mensagem" => "Pedido salvo com sucesso", "id" => $conn->lastInsertId()]);
+    try {
+        $stmt = $conn->prepare("INSERT INTO pedidos (cliente, numero, endereco, itens, total, pagamento)
+                                VALUES (:cliente, :numero, :endereco, :itens, :total, :pagamento)");
+        $stmt->execute([
+            ':cliente'   => $cliente,
+            ':numero'    => $numero,
+            ':endereco'  => $endereco,
+            ':itens'     => $itensJson,
+            ':total'     => $total,
+            ':pagamento' => $pagamento,
+        ]);
+        echo json_encode(["status" => "ok", "mensagem" => "Pedido salvo com sucesso", "id" => $conn->lastInsertId()]);
+    } catch (PDOException $e) {
+        echo json_encode(["status" => "erro", "mensagem" => "Erro ao salvar pedido: " . $e->getMessage()]);
+    }
     exit;
 }
 
@@ -139,29 +147,36 @@ if ($rota === "listar_produtos") {
 }
 
 if ($rota === "salvar_produtos") {
-    $input = json_decode(file_get_contents("php://input"), true);
-    $produtos = $input['produtos'] ?? [];
+    try {
+        $input = json_decode(file_get_contents("php://input"), true);
+        $produtos = $input['produtos'] ?? [];
 
-    $conn->exec("DELETE FROM produtos");
+        $conn->beginTransaction();
+        $conn->exec("DELETE FROM produtos");
 
-    $stmt = $conn->prepare("INSERT INTO produtos (id, nome, price, categoria, imagem, descricao, active, adicionais, tamanhos)
-                            VALUES (:id, :nome, :price, :categoria, :imagem, :descricao, :active, :adicionais, :tamanhos)");
+        $stmt = $conn->prepare("INSERT INTO produtos (id, nome, price, categoria, imagem, descricao, active, adicionais, tamanhos)
+                                VALUES (:id, :nome, :price, :categoria, :imagem, :descricao, :active, :adicionais, :tamanhos)");
 
-    foreach ($produtos as $p) {
-        $stmt->execute([
-            ':id'        => intval($p['id'] ?? 0),
-            ':nome'      => $p['nome'] ?? '',
-            ':price'     => floatval($p['price'] ?? 0),
-            ':categoria' => $p['categoria'] ?? '',
-            ':imagem'    => $p['imagem'] ?? '',
-            ':descricao' => $p['descricao'] ?? '',
-            ':active'    => isset($p['active']) ? ($p['active'] ? 1 : 0) : 1,
-            ':adicionais'=> isset($p['adicionais']) ? json_encode($p['adicionais'], JSON_UNESCAPED_UNICODE) : null,
-            ':tamanhos'  => isset($p['tamanhos'])   ? json_encode($p['tamanhos'],   JSON_UNESCAPED_UNICODE) : null,
-        ]);
+        foreach ($produtos as $p) {
+            $stmt->execute([
+                ':id'        => intval($p['id'] ?? 0),
+                ':nome'      => $p['nome'] ?? '',
+                ':price'     => floatval($p['price'] ?? 0),
+                ':categoria' => $p['categoria'] ?? '',
+                ':imagem'    => $p['imagem'] ?? '',
+                ':descricao' => $p['descricao'] ?? '',
+                ':active'    => isset($p['active']) ? ($p['active'] ? 1 : 0) : 1,
+                ':adicionais'=> isset($p['adicionais']) ? json_encode($p['adicionais'], JSON_UNESCAPED_UNICODE) : null,
+                ':tamanhos'  => isset($p['tamanhos'])   ? json_encode($p['tamanhos'],   JSON_UNESCAPED_UNICODE) : null,
+            ]);
+        }
+
+        $conn->commit();
+        echo json_encode(["status" => "ok"]);
+    } catch (Exception $e) {
+        $conn->rollBack();
+        echo json_encode(["status" => "erro", "mensagem" => "Erro ao salvar produtos: " . $e->getMessage()]);
     }
-
-    echo json_encode(["status" => "ok"]);
     exit;
 }
 
@@ -176,27 +191,61 @@ if ($rota === "listar_descontos") {
 }
 
 if ($rota === "salvar_descontos") {
-    $input = json_decode(file_get_contents("php://input"), true);
-    $descontos = $input['descontos'] ?? [];
+    try {
+        $input = json_decode(file_get_contents("php://input"), true);
+        $descontos = $input['descontos'] ?? [];
 
-    $conn->exec("DELETE FROM descontos");
+        $conn->beginTransaction();
+        $conn->exec("DELETE FROM descontos");
 
-    $stmt = $conn->prepare("INSERT INTO descontos (id, name, type, value, applyTo, startDate, endDate, active)
-                            VALUES (:id, :name, :type, :value, :applyTo, :startDate, :endDate, :active)");
+        $stmt = $conn->prepare("INSERT INTO descontos (id, name, type, value, applyTo, startDate, endDate, active)
+                                VALUES (:id, :name, :type, :value, :applyTo, :startDate, :endDate, :active)");
 
-    foreach ($descontos as $d) {
-        $stmt->execute([
-            ':id'        => intval($d['id'] ?? 0),
-            ':name'      => $d['name'] ?? '',
-            ':type'      => $d['type'] ?? 'percent',
-            ':value'     => floatval($d['value'] ?? 0),
-            ':applyTo'   => $d['applyTo'] ?? 'all',
-            ':startDate' => $d['startDate'] ?? '',
-            ':endDate'   => $d['endDate'] ?? '',
-            ':active'    => isset($d['active']) ? ($d['active'] ? 1 : 0) : 1,
-        ]);
+        foreach ($descontos as $d) {
+            $stmt->execute([
+                ':id'        => intval($d['id'] ?? 0),
+                ':name'      => $d['name'] ?? '',
+                ':type'      => $d['type'] ?? 'percent',
+                ':value'     => floatval($d['value'] ?? 0),
+                ':applyTo'   => $d['applyTo'] ?? 'all',
+                ':startDate' => $d['startDate'] ?? '',
+                ':endDate'   => $d['endDate'] ?? '',
+                ':active'    => isset($d['active']) ? ($d['active'] ? 1 : 0) : 1,
+            ]);
+        }
+
+        $conn->commit();
+        echo json_encode(["status" => "ok"]);
+    } catch (Exception $e) {
+        $conn->rollBack();
+        echo json_encode(["status" => "erro", "mensagem" => "Erro ao salvar descontos: " . $e->getMessage()]);
     }
+    exit;
+}
 
+if ($rota === "get_config") {
+    $chave = trim($_GET['chave'] ?? '');
+    if (!$chave) {
+        echo json_encode(["status" => "erro", "mensagem" => "Chave não informada"]);
+        exit;
+    }
+    $stmt = $conn->prepare("SELECT valor FROM config WHERE chave = :chave");
+    $stmt->execute([':chave' => $chave]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    echo json_encode(["status" => "ok", "valor" => $row ? $row['valor'] : null]);
+    exit;
+}
+
+if ($rota === "set_config") {
+    $input = json_decode(file_get_contents("php://input"), true);
+    $chave = trim($input['chave'] ?? '');
+    $valor = trim($input['valor'] ?? '');
+    if (!$chave) {
+        echo json_encode(["status" => "erro", "mensagem" => "Chave não informada"]);
+        exit;
+    }
+    $stmt = $conn->prepare("INSERT OR REPLACE INTO config (chave, valor) VALUES (:chave, :valor)");
+    $stmt->execute([':chave' => $chave, ':valor' => $valor]);
     echo json_encode(["status" => "ok"]);
     exit;
 }
